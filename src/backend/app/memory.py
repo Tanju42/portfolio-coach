@@ -111,6 +111,18 @@ class MemoryStore:
                 imported_at TEXT DEFAULT (datetime('now')),
                 summary_json TEXT
             );
+            CREATE TABLE IF NOT EXISTS signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT DEFAULT (datetime('now')),
+                action TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                confidence INTEGER NOT NULL,
+                risk_level TEXT NOT NULL,
+                headline TEXT NOT NULL,
+                rationale_json TEXT NOT NULL,
+                beginner_explanation TEXT NOT NULL,
+                disclaimer TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS risk_profile (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
@@ -186,6 +198,27 @@ class MemoryStore:
     def get_trade_history(self, limit: int = 50) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM trades ORDER BY time DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_signal(self, signal) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO signals
+            (action, symbol, confidence, risk_level, headline, rationale_json,
+             beginner_explanation, disclaimer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                signal.action, signal.symbol, signal.confidence, signal.risk_level,
+                signal.headline, json.dumps(signal.rationale),
+                signal.beginner_explanation, signal.disclaimer,
+            ),
+        )
+
+    def get_signals(self, limit: int = 20) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM signals ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(row) for row in rows]
 

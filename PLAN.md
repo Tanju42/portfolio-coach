@@ -69,6 +69,8 @@ Ausführung: Structured Output (JSON-Schema für Signal), Rendering im Chat + al
 Klasse: K1
 Fertig wenn: E2E: Frage "Soll ich BTC verkaufen?" → strukturiertes Signal + Begründung + Risiko-Level + Disclaimer im Output.
 
+> ✅ S5 erledigt 2026-10-15: Signal-Engine (`app/signals.py`: Pydantic-Signal action/confidence/risk_level/headline/rationale/beginner_explanation/disclaimer; `deliver_signal`-Tool mit Schema statt Free-Text-Parsing). Wiring `app/coach.py`: MCP-Tools + Memory-Tools (get_cost_basis/get_trade_history/get_risk_profile) + Signal-Tool → Agent; Beginner-/Expert-Systemprompt; Signale persistiert in `signals`-Tabelle. 9/9 Tests grün; Live-E2E mit Qwen: "Should I sell my SOL?" → HOLD (confidence 55, risk medium) mit 8 Tool-Calls inkl. Klines, Cost-Basis, Risk-Profil und Disclaimer verbatim.
+
 ### S6 — Web-Dashboard (Frontend)
 Mensch: Chat + Portfolio-Ansicht + Signal-Ampel; English-first; sauberes Design (Jury-Kriterium "Design"!).
 Ausführung: Vite+React+Tailwind (oder Streamlit-Fallback, wenn Zeit knapp — Dashboard zuerst, Chat danach); WebSocket/SSE an FastAPI.
