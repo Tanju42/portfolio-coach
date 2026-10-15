@@ -1,29 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { sendChat } from '../api.js'
-
-const LIGHT = { BUY: 'buy', SELL: 'sell', HOLD: 'hold' }
-
-function SignalCard({ signal }) {
-  if (!signal) return null
-  return (
-    <div className={`signal-card ${LIGHT[signal.action] || 'hold'}`}>
-      <div className="signal-head">
-        <span className="traffic-light">{signal.action}</span>
-        <span className="symbol">{signal.symbol}</span>
-        <span className="confidence">{signal.confidence}% confidence</span>
-      </div>
-      <div className="signal-risk">Risk: {signal.risk_level}</div>
-      <div className="signal-headline">{signal.headline}</div>
-      <ul className="signal-rationale">
-        {signal.rationale.map((reason, index) => (
-          <li key={index}>{reason}</li>
-        ))}
-      </ul>
-      <div className="signal-beginner">{signal.beginner_explanation}</div>
-      <div className="signal-disclaimer">{signal.disclaimer}</div>
-    </div>
-  )
-}
+import Markdown from './Markdown.jsx'
+import { SignalCard, EmptyChat, ThinkingDots, SUGGESTIONS } from './ChatParts.jsx'
 
 export default function ChatPanel({ sessionId, beginnerMode, onSignal }) {
   const [messages, setMessages] = useState([])
@@ -31,21 +9,21 @@ export default function ChatPanel({ sessionId, beginnerMode, onSignal }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const listEnd = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     listEnd.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy])
 
-  async function submit(event) {
-    event.preventDefault()
-    const text = input.trim()
-    if (!text || busy) return
+  async function submit(text) {
+    const prompt = (typeof text === 'string' ? text : input).trim()
+    if (!prompt || busy) return
     setInput('')
-    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setMessages((prev) => [...prev, { role: 'user', content: prompt }])
     setBusy(true)
     setError(null)
     try {
-      const reply = await sendChat(text, sessionId, beginnerMode)
+      const reply = await sendChat(prompt, sessionId, beginnerMode)
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: reply.content, signal: reply.signal, tools: reply.tools_used },
@@ -55,43 +33,55 @@ export default function ChatPanel({ sessionId, beginnerMode, onSignal }) {
       setError(err.message)
     } finally {
       setBusy(false)
+      inputRef.current?.focus()
     }
   }
 
   return (
     <section className="chat-panel">
       <div className="messages">
-        {messages.length === 0 && (
-          <div className="empty">
-            <h2>Ask anything about your portfolio.</h2>
-            <p>Try: “How is my portfolio doing?” or “Should I sell my SOL?”</p>
-          </div>
-        )}
+        {messages.length === 0 && <EmptyChat onPrompt={submit} />}
         {messages.map((message, index) => (
           <div key={index} className={`message ${message.role}`}>
-            <div className="bubble">
-              {message.content}
+            <div className="avatar">{message.role === 'user' ? 'You' : 'PC'}</div>
+            <div className="message-body">
+              {message.role === 'assistant'
+                ? <div className="bubble assistant-bubble"><Markdown text={message.content} /></div>
+                : <div className="bubble">{message.content}</div>}
               {message.tools?.length > 0 && (
                 <div className="tools-used">
+                  <span className="tool-dot" />
                   {message.tools.length} tool call{message.tools.length === 1 ? '' : 's'}
                 </div>
               )}
+              {message.role === 'assistant' && <SignalCard signal={message.signal} />}
             </div>
-            {message.role === 'assistant' && <SignalCard signal={message.signal} />}
           </div>
         ))}
-        {busy && <div className="message assistant"><div className="bubble thinking">Thinking…</div></div>}
+        {busy && <ThinkingDots />}
         {error && <div className="error">{error}</div>}
         <div ref={listEnd} />
       </div>
-      <form className="composer" onSubmit={submit}>
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Ask your coach…"
-          disabled={busy}
-        />
-        <button type="submit" disabled={busy || !input.trim()}>Send</button>
+      <form className="composer" onSubmit={(event) => { event.preventDefault(); submit() }}>
+        {messages.length === 0 && (
+          <div className="chip-row">
+            {SUGGESTIONS.map((suggestion) => (
+              <button key={suggestion} type="button" className="chip" onClick={() => submit(suggestion)}>
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="composer-row">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Ask your coach — e.g. how is my SOL doing?"
+            disabled={busy}
+          />
+          <button type="submit" disabled={busy || !input.trim()} aria-label="Send">➤</button>
+        </div>
       </form>
     </section>
   )

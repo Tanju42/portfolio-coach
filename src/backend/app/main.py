@@ -29,10 +29,10 @@ async def lifespan(app: FastAPI):
     manager = MCPManager(load_server_configs(Path(__file__).resolve().parent.parent / "servers" / "mcp_servers.json"))
     await manager.start()
     coach = CoachAgent(OpenAICompatClient(settings), store)
-    agent = await coach.build(manager, beginner_mode=True)
+    agents = {mode: await coach.build(manager, beginner_mode=mode) for mode in (True, False)}
     state["store"] = store
     state["coach"] = coach
-    state["agent"] = agent
+    state["agents"] = agents
     state["manager"] = manager
     try:
         yield
@@ -65,7 +65,7 @@ async def chat(request: ChatRequest) -> dict:
     store: MemoryStore = state["store"]
     store.add_chat_message(request.session_id, "user", request.message)
     history = store.get_chat_history(request.session_id)
-    result = await state["coach"].run(state["agent"], history)
+    result = await state["coach"].run(state["agents"][request.beginner_mode], history)
     store.add_chat_message(request.session_id, "assistant", result["content"])
     store.commit()
     return {
