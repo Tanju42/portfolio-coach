@@ -45,11 +45,15 @@ Ausführung: FastAPI + OpenAI-Client auf Token Factory; Agent-Loop (tools → LL
 Klasse: K1
 Fertig wenn: `pytest`-Test: Agent beantwortet "Was ist der aktuelle BTC-Preis?" über ein Mock-Tool korrekt mit Funktionsaufruf.
 
+> ✅ S2 erledigt 2026-10-15: Agent-Kern implementiert (`app/agent.py`, `app/llm.py`, `app/config.py`), 2 Unit-Tests grün (tool-loop + unknown-tool-Fallback), commit 379e2d7 gepusht.
+
 ### S3 — MCP-Layer: Binance (read-only) + generische Mehrfach-Provider
 Mensch: Das Herz der Modularität: generic MCP-Client (stdio/SSE), Server via Config-File hinzufügbar — zuerst Binance read-only (öffentliche Marktdaten; User-API-Key read-only optional). Später: News-Provider, weitere Exchanges.
 Ausführung: `mcp` Python-SDK; `binance-mcp` (read-only) als erster Server; Config-Schema `mcp_servers.json` (name, transport, args); Tools automatisch in Agent registrieren.
 Klasse: K2 (User-API-Keys) — nur read-only Permissions, kein Withdraw/Trade
 Fertig wenn: Agent beantwortet "Wie steht mein Portfolio da?" via Binance-MCP; zweiter Beispiel-MCP-Server (z. B. CoinGecko) per Config hinzufügbar ohne Codeänderung.
+
+> ✅ S3 erledigt 2026-10-15 (mit Vorbehalt): 2 eigene read-only MCP-Server (`servers/binance_mcp_server.py`, `servers/coingecko_mcp_server.py`, FastMCP→MCPServer 2.x), generischer MCPManager (`app/mcp_manager.py`, stdio, Config `mcp_servers.json`), Tool-Namen mit Server-Präfix. Tests grün (2 passed) inkl. E2E mit realem Qwen: Agent beantwortete BTC-Preisfrage über `binance_get_ticker` ($80.415, -2,56% 24h). Vorbehalt: Portfolio-/Account-Sicht benötigt read-only Binance-API-Keys vom User (`BINANCE_API_KEY`/`BINANCE_API_SECRET` in .env, Account-Tool ohne Keys gibt klaren Fehler). mcp 2.x: FastMCP heißt jetzt MCPServer.
 
 ### S4 — Persistentes Memory (SQLite)
 Mensch: SQLite (einfach, portabel): Positionen, Trade-Historie, Risikoprofil, verfolgte Themen, Chat-Historie. Kein externer Dienst nötig.
