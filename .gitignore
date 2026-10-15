@@ -8,3 +8,4 @@ dist/
 *.sqlite*
 notes/models.json
 .DS_Store
+screenshots/*.png
