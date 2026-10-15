@@ -15,7 +15,8 @@ mcp = MCPServer("binance")
 async def _get(path: str, params: dict | None = None) -> dict:
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(f"{BASE_URL}{path}", params=params)
-        response.raise_for_status()
+        if response.status_code >= 400:
+            return {"error": f"binance api {response.status_code}: {response.text[:200]}"}
         return response.json()
 
 
@@ -36,7 +37,8 @@ def _signed_get(path: str, params: dict) -> dict:
     response = httpx.get(
         f"{BASE_URL}{path}?{query}&signature={signature}", headers=headers, timeout=15
     )
-    response.raise_for_status()
+    if response.status_code >= 400:
+        return {"error": f"binance api {response.status_code}: {response.text[:200]}"}
     return response.json()
 
 
@@ -44,6 +46,8 @@ def _signed_get(path: str, params: dict) -> dict:
 async def get_ticker(symbol: str) -> dict:
     """24h ticker for a trading pair, e.g. BTCUSDT. Shows price and 24h change."""
     data = await _get("/api/v3/ticker/24hr", {"symbol": symbol.upper()})
+    if "error" in data:
+        return data
     return {
         "symbol": data["symbol"],
         "last_price": data["lastPrice"],
@@ -61,6 +65,8 @@ async def get_klines(symbol: str, interval: str = "1d", limit: int = 14) -> dict
     data = await _get(
         "/api/v3/klines", {"symbol": symbol.upper(), "interval": interval, "limit": limit}
     )
+    if "error" in data:
+        return data
     return {
         "symbol": symbol.upper(),
         "interval": interval,

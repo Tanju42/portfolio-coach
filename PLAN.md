@@ -61,6 +61,8 @@ Ausführung: Schema + Repository-Layer; Agent-Tools `remember`/`recall`; initial
 Klasse: K1
 Fertig wenn: Neustart des Backends → Coach erinnert Risikoprofil + Positionen aus vorheriger Session (E2E-Test).
 
+> ✅ S4 erledigt 2026-10-15: SQLite-Memory (`app/memory.py`: positions, trades, import_meta, risk_profile, chat_messages, tracked_topics; Restart-fest — Test `test_import_idempotent_and_survives_restart` grün). Binance-Transaction-History-Importer (`app/binance_csv.py` + CLI `python -m app.import_csv`): 8.448 Rows (2021→2026) → 44 Trades, 4.541 Income-Events, 3.353 Earn-Moves (No-Op), 17 Withdrawals; Cost-Basis nach Average-Cost-Methode mit Basis-Carryover bei Staking-Converts (SOL→BNSOL, ETH→BETH), Earn-Subscriptions/Redemptions = No-Op, EUR→USD-Annahme 1.10, unbekannte Crypto-Crypto-Preis → basis_unknown. Ehrliche Grenze: $11.669 Auto-Invest-Cash ohne zurechenbarem Coin-Inflow. Cross-Check Live: Portfolio $2.360, Kostenbasis $1.713, unrealisiertes P&L +$647 (SOL +$502, ZAMA +$327, AVAX −$304). 6/6 Tests grün. S6-Notiz: Dashboard braucht einen Import-Help-Page (Wie exportiert man die CSV aus Binance + Upload-Flow), damit's plug-and-play für jeden User ist.
+
 ### S5 — Signal-Engine (BUY/SELL/HOLD + Ampel)
 Mensch: Signale mit strukturierter Begründung + Risikoeinordnung (z. B. Grün/Gelb/Rot, Volatilität, Konfidenz); Beginner-Mode-Toggle (Signal aus/Anfänger-Erklärungen) — die Entscheidung bleibt IMMER beim User, Disclaimer im UI.
 Ausführung: Structured Output (JSON-Schema für Signal), Rendering im Chat + als Ampel-Widget.

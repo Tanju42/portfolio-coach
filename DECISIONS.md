@@ -73,3 +73,30 @@ Entwicklungskosten 0 Credits, volle Geschwindigkeit, keine Rate-Limits beim Iter
 ### Konsequenzen
 - Kritischer Risikopunkt: lokales quant-4-Modell vs. Nebius-Modell müssen beide Function-Calling sauber können; Agent-Loop wird in S1/S2 gegen beide getestet, gegen Nebius spätestens in S8.
 - Verhalten/Qualität-Diff zwischen den Modellen prüfen (S8), Prompt ggf. nachziehen — aber config-only bleibt.
+
+---
+
+## ADR-004: Cost-Basis-Methodik des CSV-Importers (Average Cost + dokumentierte Grenzen)
+- **Datum**: 2026-10-15
+- **Status**: implementiert (S4), durch 6 Tests abgesichert
+
+### Kontext
+User liefert Binance "Transaction History" CSV (8.448 Rows, 2021-2026) mit 30+ Operation-Typen (Buy/Sell/Fee/Convert/Earn/Staking/Auto-Invest/Airdrops). Kostenbasis pro Coin soll plug-and-play aus jedem standardmäßig exportierten Binance-CSV berechenbar sein — nicht maßgeschneidert auf den User.
+
+### Entscheidung
+- **Average-Cost-Methode**: Basis in USD; Cash-Legs (USDT/USDC/BUSD/TUSD/FDUSD/DAI ≈ 1.0, EUR ≈ 1.10 — Annahme, dokumentiert) definieren die Kosten.
+- **Event-Semantik**: Earn-Subscription/Redemption = No-Op (Coin bleibt im Besitz — verhindert, dass gekaufte und sofort gestakte Coins ihre Basis verlieren). Echte Staking-Converts (SOL→BNSOL, ETH→BETH, Liquid Swap) = Transfer mit **Basis-Carryover**. Income (Rewards/Airdrops/Interest) = Basis 0. Withdraw/Spending = proportionaler Basisabzug. Crypto-Crypto-Converts ohne Cash-Leg = `basis_unknown` (ehrlich, nicht geraten).
+- **Gruppierung**: Trade-Legs werden per 30s-Chain-Cluster gekoppelt (Binance schreibt Buy- und Fiat-Legs Sekunden auseinander, auch über Minuten-Grenzen).
+- **Idempotenz**: Trades über SHA-1-Key dedupliziert; wiederholtes Importieren ändert nichts.
+- **Auto-Invest-Deduct-Legs** ohne zurechenbarem Coin-Inflow: als `$ unpaired` im Summary gemeldet, NICHT geraten. Index-Redeems erhalten die avg-Basis des Coins (bestmögliche Approximation).
+
+### Warum
+Alle Alternativen (historische Kurse nachladen, per-Trade FIFO) sind >10× Aufwand für 10–30 h Budget; Average Cost ist konservativ, verständlich und bei Binance-Exports die übliche Heuristik. Die `basis_reliable_share`-Metrik im Output zeigt der Jury transparent, wie verlässlich jede Zahl ist.
+
+### Verworfene Alternativen
+- FIFO/LIFO-Steuer-Matching (zu komplex für Demo, Steuerlogik nicht Ziel).
+- Historische FX-Kurse für EUR (Genauigkeit +2 %, Aufwand unverhältnismäßig).
+
+### Konsequenzen
+- S6-Dashboard braucht eine Help-Page: "How to export your Binance Transaction History" (Account → Transaction History → generate CSV → upload), damit der Import für jeden User plug-and-play ist.
+- Onboarding-Frage in S5: Restliche unbekannte Basis kann der User manuell ergänzen.
