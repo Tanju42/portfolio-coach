@@ -59,6 +59,9 @@ class MCPManager:
                 )
         return specs
 
+    def connected_names(self) -> list[str]:
+        return sorted(self._sessions)
+
     def _make_handler(self, server_name: str, tool_name: str):
         async def handler(arguments: dict[str, Any]) -> Any:
             session = self._sessions[server_name]

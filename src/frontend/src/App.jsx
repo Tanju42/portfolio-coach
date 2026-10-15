@@ -84,7 +84,7 @@ export default function App() {
             />
           )}
           {tab === 'portfolio' && (
-            <PortfolioPanel portfolio={portfolio} setPortfolio={setPortfolio} registerRefresh={refreshPortfolio} />
+            <PortfolioPanel registerRefresh={refreshPortfolio} />
           )}
           {tab === 'market' && <MarketPanel registerRefresh={refreshPortfolio} />}
           {tab === 'knowledge' && <KnowledgePanel />}

@@ -152,7 +152,27 @@ class MemoryStore:
                 topic TEXT PRIMARY KEY,
                 added_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                label TEXT NOT NULL,
+                total_value REAL NOT NULL,
+                total_cost REAL,
+                pnl REAL,
+                asset_json TEXT
+            );
+            CREATE TABLE IF NOT EXISTS watchlist (
+                symbol TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                added_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS allocation_targets (
+                asset TEXT PRIMARY KEY,
+                target_pct REAL NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_trades_time ON trades(time);
+            CREATE INDEX IF NOT EXISTS idx_snapshots_ts ON portfolio_snapshots(ts);
             """
         )
         self._conn.commit()
@@ -291,6 +311,68 @@ class MemoryStore:
             "INSERT INTO chat_messages (session_id, role, content) VALUES (?, ?, ?)",
             (session_id, role, content),
         )
+
+    def save_snapshot(
+        self,
+        ts: int,
+        provider: str,
+        label: str,
+        total_value: float,
+        total_cost: float | None,
+        pnl: float | None,
+        asset_json: str,
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO portfolio_snapshots
+            (ts, provider, label, total_value, total_cost, pnl, asset_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (ts, provider, label, total_value, total_cost, pnl, asset_json),
+        )
+
+    def latest_snapshot_ts(self, provider: str) -> int | None:
+        row = self._conn.execute(
+            "SELECT MAX(ts) AS latest FROM portfolio_snapshots WHERE provider = ?", (provider,)
+        ).fetchone()
+        value = row["latest"] if row else None
+        return int(value) if value is not None else None
+
+    def get_snapshots(self, since_ts: int | None = None, limit: int = 2000) -> list[dict[str, Any]]:
+        params: list[Any] = []
+        query = "SELECT ts, provider, label, total_value, total_cost, pnl FROM portfolio_snapshots"
+        if since_ts is not None:
+            query += " WHERE ts >= ?"
+            params.append(since_ts)
+        query += " ORDER BY ts ASC LIMIT ?"
+        params.append(limit)
+        rows = self._conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+    def add_watch(self, symbol: str, kind: str) -> bool:
+        cursor = self._conn.execute(
+            "INSERT OR IGNORE INTO watchlist (symbol, kind) VALUES (?, ?)", (symbol, kind)
+        )
+        return cursor.rowcount > 0
+
+    def remove_watch(self, symbol: str) -> bool:
+        cursor = self._conn.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol,))
+        return cursor.rowcount > 0
+
+    def get_watchlist(self) -> list[dict[str, Any]]:
+        rows = self._conn.execute("SELECT symbol, kind, added_at FROM watchlist ORDER BY added_at DESC").fetchall()
+        return [dict(row) for row in rows]
+
+    def get_allocation_targets(self) -> dict[str, float]:
+        rows = self._conn.execute("SELECT asset, target_pct FROM allocation_targets").fetchall()
+        return {row["asset"]: float(row["target_pct"]) for row in rows}
+
+    def set_allocation_targets(self, targets: dict[str, float]) -> None:
+        self._conn.execute("DELETE FROM allocation_targets")
+        for asset, pct in targets.items():
+            self._conn.execute(
+                "INSERT INTO allocation_targets (asset, target_pct) VALUES (?, ?)", (asset, pct)
+            )
 
     def get_chat_history(self, session_id: str, limit: int = 50) -> list[dict[str, Any]]:
         rows = self._conn.execute(

@@ -16,6 +16,50 @@ export function fetchPortfolio() {
   return fetch(`${API}/portfolio`).then(jsonOrThrow)
 }
 
+export function fetchPortfolios() {
+  return fetch(`${API}/portfolios`).then(jsonOrThrow)
+}
+
+export function fetchHistory(range) {
+  return fetch(`${API}/portfolio/history?range=${encodeURIComponent(range)}`).then(jsonOrThrow)
+}
+
+export function fetchAssetDetail(asset) {
+  return fetch(`${API}/asset/${encodeURIComponent(asset)}`).then(jsonOrThrow)
+}
+
+export function fetchAllocation() {
+  return fetch(`${API}/allocation`).then(jsonOrThrow)
+}
+
+export function setAllocationTargets(targets) {
+  return fetch(`${API}/allocation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targets }),
+  }).then(jsonOrThrow)
+}
+
+export function fetchRisk() {
+  return fetch(`${API}/risk`).then(jsonOrThrow)
+}
+
+export function fetchWatchlist() {
+  return fetch(`${API}/watchlist`).then(jsonOrThrow)
+}
+
+export function addWatch(symbol, kind) {
+  return fetch(`${API}/watchlist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, kind }),
+  }).then(jsonOrThrow)
+}
+
+export function removeWatch(symbol) {
+  return fetch(`${API}/watchlist/${encodeURIComponent(symbol)}`, { method: 'DELETE' }).then(jsonOrThrow)
+}
+
 export function fetchSignals() {
   return fetch(`${API}/signals`).then(jsonOrThrow)
 }

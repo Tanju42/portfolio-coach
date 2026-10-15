@@ -100,3 +100,30 @@ Alle Alternativen (historische Kurse nachladen, per-Trade FIFO) sind >10× Aufwa
 ### Konsequenzen
 - S6-Dashboard braucht eine Help-Page: "How to export your Binance Transaction History" (Account → Transaction History → generate CSV → upload), damit der Import für jeden User plug-and-play ist.
 - Onboarding-Frage in S5: Restliche unbekannte Basis kann der User manuell ergänzen.
+
+## ADR-005: Multi-Portfolio-Architektur — eine Gesamtansicht, je Provider ein eigener Block
+- **Datum**: 2026-10-15
+- **Status**: implementiert
+
+### Kontext
+Der Portfolio-Tab zeigte nur EIN Portfolio (Demo Crypto oder Live Binance). User-Anforderung: alle verbundenen Portfolios im Tab Portfolio mit je einer eigenen Übersicht; dazu 5 ausgereifte Features. Best-Practice-Recherche (Mercury-Pattern, Asset-Aggregatoren): Total oben, Accounts darunter, Fehlerisolation pro Provider, gleiche Assets über Accounts mergen.
+
+### Entscheidung
+- **`app/portfolios.py`**: Registry `ACCOUNT_SOURCES` (demo-exchange Crypto, demo-exchange Brokerage, binance Live). `build_all_portfolios()` fragt alle Provider parallel ab (asyncio.gather), jeder Block in try/except → Fehlerisolation (ein toter Provider killt die Gesamtansicht nicht). Live-Quelle in Demo-Mode als `not_connected` sichtbar.
+- **Merge**: gleiches Asset über Provider = eine Zeile mit `providers`-Breakdown (Value-gewichtete Avg-Cost- und Basis-Reliability-Aggregation).
+- **Snapshots**: Tabelle `portfolio_snapshots`, beim Abruf 300s-throttled je Provider; `/api/portfolio/history?range=24h|7d|all`. Kein synthetisches Backfill (ehrlich: Chart startet leer und füllt sich).
+- **Allocation/Rebalance**: deterministische Engine (`app/analytics.py`): Gruppen-Targets (MAJOR/ALT/STABLES/STOCKS) + Einzel-Assets, Normalisierung auf 100 %, ±5 %-Drift-Toleranz, $10-Minimaltrade, Sell-before-Buy-Ordering. Keine Auto-Execution.
+- **Risk-Score**: deterministische 0-100-Penalty-Formel (Konzentration >25 %, Stables-Buffer <10 %, Meme-Exposure, Diversifikation, Basis-Reliability) mit dokumentierten Penalty-Komponenten.
+- **Realized P&L bewusst weggelassen**: CSV-Import speichert Trades ohne verlässliche Cost-Basis (ADR-004), ein Realized-Wert wäre geraten — nur Unrealized wird gezeigt.
+
+### Warum
+Fehlerisolation und Not-Connected-Sichtbarkeit sind Kern der User-Anforderung ("alle Provider, die hinterlegt sind"). Deterministische Rebalance-/Risk-Engine statt LLM-Output macht die Zahlen testbar (12 Unit-Tests) und erklären — der Agent erklärt im Chat, rechnet aber nichts Unnachprüfbares.
+
+### Verworfene Alternativen
+- LLM-generierte Rebalance-Vorschläge als einzige Quelle (nicht deterministisch prüfbar).
+- Synthetisches History-Backfill (wäre fabrizierte Daten).
+- Eigene Asset-Detail-Route (Mobile-First-App bleibt single-page, Inline-Detail reicht).
+
+### Konsequenzen
+- Frontend Portfolio-Tab: Provider-Cards, Filter-Chips, Provider-Badges in Tabelle, Performance-Chart, Asset-Detail, Rebalance-Coach, Risk-Sektion, Watchlist, Provider-Status-Footer.
+- Neue Endpunkte: `/api/portfolios`, `/api/portfolio/history`, `/api/asset/{asset}`, `/api/allocation` (GET/POST), `/api/risk`, `/api/watchlist` (GET/POST/DELETE); `/api/portfolio` bleibt als Aggregate-Kompatibilitätsalias.

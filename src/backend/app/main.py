@@ -24,8 +24,7 @@ from app.memory import MemoryStore
 DB_PATH = Path(__file__).resolve().parent.parent / "portfolio.db"
 SERVERS_PATH = Path(__file__).resolve().parent.parent / "servers" / "mcp_servers.json"
 
-LIVE_ACCOUNT_TOOL = "binance_get_account_assets"
-DEMO_ACCOUNT_TOOL = "demo-exchange_get_demo_portfolio"
+
 MARKET_TOOLS = [
     "coingecko_get_fear_greed",
     "coingecko_get_global_market",
@@ -162,17 +161,207 @@ async def market() -> dict:
     return data
 
 
+@app.get("/api/portfolios")
+async def portfolios_all() -> dict:
+    store: MemoryStore = state["store"]
+    positions = {p.coin: p for p in store.get_positions()}
+    from app.portfolios import build_all_portfolios, record_snapshots
+
+    result = await build_all_portfolios(state["manager"], positions, state["account_mode"])
+    record_snapshots(store, result)
+    configured = [c.name for c in state["manager"]._configs]
+    connected = set(state["manager"].connected_names())
+    result["providers"] = [
+        {"name": name, "connected": name in connected} for name in configured
+    ]
+    return result
+
+
 @app.get("/api/portfolio")
 async def portfolio() -> dict:
     store: MemoryStore = state["store"]
     positions = {p.coin: p for p in store.get_positions()}
-    from app.portfolio import build_portfolio
+    from app.portfolios import build_all_portfolios
 
-    if state["account_mode"] == "live":
-        result = await build_portfolio(state["manager"], positions, LIVE_ACCOUNT_TOOL, "binance_get_ticker")
-        if "error" not in result:
-            return result
-    return await build_portfolio(state["manager"], positions, DEMO_ACCOUNT_TOOL, "binance_get_ticker")
+    result = await build_all_portfolios(state["manager"], positions, state["account_mode"])
+    totals = result["totals"]
+    return {
+        "rows": result["rows"],
+        "total_value_usd": totals["total_value_usd"],
+        "total_cost_usd": totals["total_cost_usd"],
+        "total_pnl_usd": totals["total_pnl_usd"],
+        "portfolios": result["portfolios"],
+        "note": "Aggregated across all connected portfolios. Cost basis from imported transaction history (average-cost method).",
+    }
+
+
+@app.get("/api/portfolio/history")
+async def portfolio_history(range: str = "7d") -> dict:
+    from app.portfolios import history_series
+
+    return history_series(state["store"], range)
+
+
+@app.get("/api/asset/{asset}")
+async def asset_detail(asset: str) -> dict:
+    store: MemoryStore = state["store"]
+    positions = {p.coin: p for p in store.get_positions()}
+    from app.portfolios import build_all_portfolios
+
+    result = await build_all_portfolios(state["manager"], positions, state["account_mode"])
+    target = asset.strip().upper()
+    row = next((r for r in result["rows"] if r["asset"].upper() == target), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"asset {target} not in any connected portfolio")
+
+    specs = {spec.name: spec for spec in await state["manager"].list_tool_specs()}
+    kind = "stocks" if any("Broker" in p["label"] for p in row["providers"]) else "crypto"
+    sparkline = []
+    try:
+        if kind == "stocks" and "stocks_get_history" in specs:
+            data = await _call_tool(specs["stocks_get_history"], {"ticker": target, "period": "1mo"})
+            sparkline = [
+                {"t": point["date"], "close": float(point["close"])} for point in data.get("points", [])
+            ]
+        elif "binance_get_klines" in specs:
+            data = await _call_tool(
+                specs["binance_get_klines"], {"symbol": f"{target}USDT", "interval": "1d", "limit": 30}
+            )
+            sparkline = [
+                {"t": candle["open_time"], "close": float(candle["close"])}
+                for candle in data.get("candles", [])
+            ]
+    except Exception:
+        sparkline = []
+
+    signals = [
+        s for s in store.get_signals(50)
+        if target in s["symbol"].upper() or s["symbol"].upper() in target
+    ][:5]
+    knowledge = [
+        k for k in store.get_knowledge(50) if target.lower() in k["topic"].lower()
+    ][:5]
+    return {
+        "asset": row["asset"],
+        "kind": kind,
+        "qty": row["qty"],
+        "price_usd": _current_price(result, target),
+        "value_usd": row["value_usd"],
+        "avg_cost_usd": row["avg_cost_usd"],
+        "pnl_usd": row["pnl_usd"],
+        "basis_reliable_share": row["basis_reliable_share"],
+        "providers": row["providers"],
+        "sparkline": sparkline,
+        "signals": signals,
+        "knowledge": knowledge,
+    }
+
+
+def _current_price(result: dict, target: str) -> float | None:
+    for block in result["portfolios"]:
+        if block.get("status") != "ok":
+            continue
+        for block_row in block.get("rows", []):
+            if block_row["asset"].upper() == target and block_row["price_usd"]:
+                return block_row["price_usd"]
+    return None
+
+
+async def _call_tool(spec, arguments: dict) -> dict:
+    import json as _json
+
+    result = await spec.handler(arguments)
+    return _json.loads(result["content"][0]["text"])
+
+
+@app.get("/api/allocation")
+async def allocation() -> dict:
+    store: MemoryStore = state["store"]
+    positions = {p.coin: p for p in store.get_positions()}
+    from app.analytics import rebalance_suggestions
+    from app.portfolios import build_all_portfolios
+
+    result = await build_all_portfolios(state["manager"], positions, state["account_mode"])
+    targets = store.get_allocation_targets()
+    suggestions = rebalance_suggestions(result["rows"], targets)
+    return {
+        "targets": targets or None,
+        **suggestions,
+        "total_value_usd": result["totals"]["total_value_usd"],
+    }
+
+
+class AllocationRequest(BaseModel):
+    targets: dict[str, float]
+
+
+@app.post("/api/allocation")
+async def set_allocation(request: AllocationRequest) -> dict:
+    if not request.targets:
+        raise HTTPException(status_code=400, detail="targets must not be empty")
+    total = sum(request.targets.values())
+    if total <= 0:
+        raise HTTPException(status_code=400, detail="targets must sum to a positive value")
+    state["store"].set_allocation_targets({k.upper(): float(v) for k, v in request.targets.items()})
+    state["store"].commit()
+    return {"saved": True, "targets": {k.upper(): v for k, v in request.targets.items()}}
+
+
+@app.get("/api/risk")
+async def risk() -> dict:
+    positions = {p.coin: p for p in state["store"].get_positions()}
+    from app.analytics import risk_report
+    from app.portfolios import build_all_portfolios
+
+    result = await build_all_portfolios(state["manager"], positions, state["account_mode"])
+    return risk_report(result["rows"], result["portfolios"])
+
+
+@app.get("/api/watchlist")
+async def watchlist_get() -> dict:
+    store: MemoryStore = state["store"]
+    items = store.get_watchlist()
+    specs = {spec.name: spec for spec in await state["manager"].list_tool_specs()}
+    for item in items:
+        item["price_usd"] = None
+        item["change_24h_pct"] = None
+        try:
+            if item["kind"] == "stocks" and "stocks_get_quote" in specs:
+                data = await _call_tool(specs["stocks_get_quote"], {"ticker": item["symbol"]})
+                item["price_usd"] = data.get("price")
+                item["change_24h_pct"] = data.get("change_pct")
+            elif "binance_get_ticker" in specs:
+                data = await _call_tool(specs["binance_get_ticker"], {"symbol": f"{item['symbol']}USDT"})
+                if "error" not in data:
+                    item["price_usd"] = float(data.get("last_price", 0)) or None
+                    item["change_24h_pct"] = float(data.get("price_change_percent_24h", 0)) or None
+        except Exception:
+            pass
+    return {"watchlist": items}
+
+
+class WatchRequest(BaseModel):
+    symbol: str
+    kind: str = "crypto"
+
+
+@app.post("/api/watchlist")
+async def watchlist_add(request: WatchRequest) -> dict:
+    symbol = request.symbol.strip().upper()
+    if not symbol or len(symbol) > 24:
+        raise HTTPException(status_code=400, detail="symbol must be 1-24 characters")
+    if request.kind not in ("crypto", "stocks"):
+        raise HTTPException(status_code=400, detail="kind must be 'crypto' or 'stocks'")
+    added = state["store"].add_watch(symbol, request.kind)
+    state["store"].commit()
+    return {"added": added, "symbol": symbol, "kind": request.kind}
+
+
+@app.delete("/api/watchlist/{symbol}")
+async def watchlist_remove(symbol: str) -> dict:
+    removed = state["store"].remove_watch(symbol.strip().upper())
+    state["store"].commit()
+    return {"removed": removed, "symbol": symbol.strip().upper()}
 
 
 class ResearchRequest(BaseModel):
