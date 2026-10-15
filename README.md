@@ -13,7 +13,28 @@ always yours.** Educational support, not financial advice.
 
 > Status: WIP — built for the Nebius x NVIDIA Global AI Hackathon (Oct 2026).
 
-## Quick start
+## Run the app (detached screens)
+
+The runtime stack runs in named screens, independent of any agent session:
+
+```bash
+./coach-ctl start        # startet alle 3: pc-backend, pc-frontend, pc-preview
+./coach-ctl status       # Screens + Health-Checks
+./coach-ctl stop [backend|frontend|preview|all]
+./coach-ctl restart [backend|frontend|preview|all]
+```
+
+| Screen       | Port | Was                                   |
+|--------------|------|---------------------------------------|
+| `pc-backend` | 8000 | FastAPI (uvicorn), lädt `.env` selbst |
+| `pc-frontend`| 5173 | Vite dev server (HMR)                 |
+| `pc-preview` | 4173 | Production-Build (vite preview)       |
+
+Der Dev-Server proxyt `/api` an `127.0.0.1:8000`. Beide Frontends sind per
+`--host 0.0.0.0` im LAN erreichbar. Der Backend-Port bleibt im LAN offen;
+für die öffentliche Demo siehe S8 im PLAN.md.
+
+## Quick start (ohne screens)
 Coming with the first runnable milestone (S2).
 
 ## License

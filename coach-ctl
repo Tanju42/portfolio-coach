@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# coach-ctl — manage the portfolio-coach runtime stack in detached screens.
+# Usage: coach-ctl {start|stop|status|restart} [backend|frontend|preview|all]
+set -u
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$ROOT/src/backend"
+FRONTEND_DIR="$ROOT/src/frontend"
+
+SCREEN_BACKEND="pc-backend"
+SCREEN_FRONTEND="pc-frontend"
+SCREEN_PREVIEW="pc-preview"
+
+SCREEN_BIN="$(command -v screen || echo /usr/bin/screen)"
+
+backend_cmd() {
+  printf "cd '%s' && set -a && source .env && set +a && exec ./.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000" "$BACKEND_DIR"
+}
+
+frontend_cmd() {
+  printf "cd '%s' && exec npm run dev -- --port 5173 --host 0.0.0.0" "$FRONTEND_DIR"
+}
+
+preview_cmd() {
+  printf "cd '%s' && exec npm run preview -- --port 4173 --host 0.0.0.0" "$FRONTEND_DIR"
+}
+
+screen_running() {
+  "$SCREEN_BIN" -ls 2>/dev/null | grep -q "[0-9]\.$1[[:space:]]"
+}
+
+start_one() {
+  local name="$1" cmd="$2"
+  if screen_running "$name"; then
+    echo "$name: bereits laufend"
+    return 0
+  fi
+  "$SCREEN_BIN" -dmS "$name" bash -c "$(eval "$cmd"); rc=\$?; echo; echo \"=== Prozess beendet (rc=\$rc) ===\"; exec bash"
+  sleep 2
+  if screen_running "$name"; then echo "$name: gestartet"; else echo "$name: FEHLER beim Start"; return 1; fi
+}
+
+stop_one() {
+  local name="$1"
+  if screen_running "$name"; then
+    "$SCREEN_BIN" -S "$name" -X quit
+    echo "$name: gestoppt"
+  else
+    echo "$name: lief nicht"
+  fi
+}
+
+do_start() {
+  local target="${1:-all}"
+  case "$target" in
+    backend|all) start_one "$SCREEN_BACKEND" "backend_cmd" ;;
+  esac
+  case "$target" in
+    frontend|all) start_one "$SCREEN_FRONTEND" "frontend_cmd" ;;
+  esac
+  case "$target" in
+    preview|all) start_one "$SCREEN_PREVIEW" "preview_cmd" ;;
+  esac
+}
+
+do_stop() {
+  local target="${1:-all}"
+  case "$target" in
+    backend|all) stop_one "$SCREEN_BACKEND" ;;
+  esac
+  case "$target" in
+    frontend|all) stop_one "$SCREEN_FRONTEND" ;;
+  esac
+  case "$target" in
+    preview|all) stop_one "$SCREEN_PREVIEW" ;;
+  esac
+}
+
+do_status() {
+  echo "== Screens =="
+  "$SCREEN_BIN" -ls 2>/dev/null | grep -E "$SCREEN_BACKEND|$SCREEN_FRONTEND|$SCREEN_PREVIEW" || echo "(keine project-screens aktiv)"
+  echo "== Health =="
+  curl -s --max-time 5 -o /dev/null -w "backend  :8000   HTTP %{http_code}\n" http://127.0.0.1:8000/api/health || echo "backend  :8000   DOWN"
+  curl -s --max-time 5 -o /dev/null -w "frontend :5173   HTTP %{http_code}\n" http://127.0.0.1:5173/ || echo "frontend :5173   DOWN"
+  curl -s --max-time 5 -o /dev/null -w "preview  :4173   HTTP %{http_code}\n" http://127.0.0.1:4173/ || echo "preview  :4173   DOWN"
+}
+
+do_restart() {
+  local target="${1:-all}"
+  do_stop "$target"
+  sleep 1
+  do_start "$target"
+}
+
+case "${1:-status}" in
+  start) do_start "${2:-all}" ;;
+  stop) do_stop "${2:-all}" ;;
+  status) do_status ;;
+  restart) do_restart "${2:-all}" ;;
+  *) echo "Usage: $0 {start|stop|status|restart} [backend|frontend|preview|all]"; exit 1 ;;
+esac

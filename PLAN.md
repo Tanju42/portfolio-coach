@@ -103,6 +103,8 @@ Ausführung: `servers/stocks_mcp_server.py` (Yahoo v8 chart/search, User-Agent n
 Klasse: K1 (DDG-Lite kann bot-gewallt werden — Fehler graceful)
 Fertig wenn: /api/knowledge/research mit echtem Agent-Run speichert einen Insight mit Quellen; Knowledge-Tab rendert; Stocks-Quote live (AAPL etc.).
 
+> ✅ S6d erledigt 2026-10-15 (User-Entscheidung: nicht nur Crypto — auch Aktien + AI-Research mit Knowledge-Tab): 2 neue MCP-Server. `stocks_mcp_server.py`: get_quote/get_history/search_stock mit Fallback-Kette AlphaVantage (wenn ALPHA_VANTAGE_API_KEY) → Yahoo Finance → **simulierte Demo-Preise (klar gelabelt `live: false`)** — Yahoo/Stooq blocken die VM-IP (429/PoW-Bot-Wall), Demo bleibt damit voll funktionsfähig. `research_mcp_server.py`: search_web (Google-News-RSS primär, DDG-lite-Fallback) + fetch_page (HTML-Text-Extraktion). Demo-Broker-Portfolio (`get_demo_broker_portfolio`: AAPL/MSFT/NVDA/KO/SAP.DE mit Cost-Basis). Knowledge-Store: SQLite `knowledge`-Tabelle, `deliver_knowledge`-Tool mit Topic/Summary/Key-Points/Sources/Confidence, `/api/knowledge` + `/api/knowledge/research` (Agent-Run mit Research-Prompt, 20 Tool-Runden, AgentLoopError-graceful). Frontend: 6. Tab "Knowledge" mit Research-Eingabe + Insight-Cards mit Quellen-Links. Live-E2E: Research "Is NVDA a good long-term buy?" → gespeichert (confidence high, $96.2B Q2-Revenue zitiert, Kurs ~$218), Google-News-RSS liefert echte Quellen, Knowledge-Tab rendert. 15/15 Tests, Build grün. commit e3f52f6.
+
 ### S7 — E2E-Härtung
 Mensch: Ein sauberer Demo-Flow, der im Video gezeigt wird: Onboarding → Portfolio verbinden → Frage → Signal → Begründung.
 Ausführung: Smoke-Tests, Fehlerfälle (API-Fail → graceful), Logging.
@@ -131,10 +133,12 @@ Fertig wenn: Devpost zeigt "Submitted".
 - 15.–16. Okt: S0, S1 (lokal!)
 - 17.–19. Okt: S2, S3 (Kern: Agent + MCP, alles lokal auf Qwen)
 - 20.–21. Okt: S4, S5
-- 22.–25. Okt: S6, S7 (Frontend + E2E)
+- 22.–25. Okt: S6, S6b/c/d (Frontend + Demo-Mode + Market + Knowledge) + **Feature-Ausbau in neuen Sessions**
 - 26.–27. Okt: S8 (Deploy + **Nebius-Swap** — Nebius-Key nötig spätestens hier!) + Buffer
-- 28.–29. Okt: S9 (Video, Docs)
+- 28.–29. Okt: S7 (Rehearsal kurz vor Deadline) + S9 (Video, Docs)
 - 29.–30. Okt: S10 Submit (Ziel: 29. Okt Abend)
+
+> User-Entscheidung 2026-10-15: S7 wird bewusst auf kurz vor der Deadline gelegt; davor Feature-Ausbau in neuen Sessions. Handover-Notiz: /mnt/hermes-data/vault/01_Projekte/portfolio-coach_Decisions.md
 
 ## Rollback
 - K1 (Code/Docs): git revert; kein Backup nötig.
