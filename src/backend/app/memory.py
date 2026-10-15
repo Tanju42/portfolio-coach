@@ -123,6 +123,15 @@ class MemoryStore:
                 beginner_explanation TEXT NOT NULL,
                 disclaimer TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS knowledge (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT DEFAULT (datetime('now')),
+                topic TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                key_points_json TEXT NOT NULL,
+                sources_json TEXT NOT NULL,
+                confidence TEXT DEFAULT 'medium'
+            );
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -241,6 +250,34 @@ class MemoryStore:
             (key, value),
         )
         self.commit()
+
+    def save_knowledge(self, topic: str, summary: str, key_points: list, sources: list, confidence: str) -> int:
+        cursor = self._conn.execute(
+            """
+            INSERT INTO knowledge (topic, summary, key_points_json, sources_json, confidence)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (topic, summary, json.dumps(key_points), json.dumps(sources), confidence),
+        )
+        self.commit()
+        return int(cursor.lastrowid or 0)
+
+    def get_knowledge(self, limit: int = 50) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM knowledge ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "topic": row["topic"],
+                "summary": row["summary"],
+                "key_points": json.loads(row["key_points_json"]),
+                "sources": json.loads(row["sources_json"]),
+                "confidence": row["confidence"],
+            }
+            for row in rows
+        ]
 
     def set_risk_profile(self, key: str, value: str) -> None:
         self._conn.execute(

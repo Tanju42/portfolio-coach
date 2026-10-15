@@ -28,6 +28,18 @@ export function fetchMarket() {
   return fetch(`${API}/market`).then(jsonOrThrow)
 }
 
+export function fetchKnowledge() {
+  return fetch(`${API}/knowledge`).then(jsonOrThrow)
+}
+
+export function researchKnowledge(topic) {
+  return fetch(`${API}/knowledge/research`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic }),
+  }).then(jsonOrThrow)
+}
+
 export function fetchSettings() {
   return fetch(`${API}/settings`).then(jsonOrThrow)
 }

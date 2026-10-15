@@ -175,6 +175,26 @@ async def portfolio() -> dict:
     return await build_portfolio(state["manager"], positions, DEMO_ACCOUNT_TOOL, "binance_get_ticker")
 
 
+class ResearchRequest(BaseModel):
+    topic: str
+
+
+@app.get("/api/knowledge")
+def knowledge_list() -> dict:
+    return {"knowledge": state["store"].get_knowledge()}
+
+
+@app.post("/api/knowledge/research")
+async def knowledge_research(request: ResearchRequest) -> dict:
+    topic = request.topic.strip()
+    if not topic or len(topic) > 200:
+        raise HTTPException(status_code=400, detail="topic must be 1-200 characters")
+    coach: CoachAgent = state["coach"]
+    agent = await coach.build_research_agent(state["manager"], topic)
+    result = await coach.run_research(agent, topic)
+    return {"topic": topic, **result}
+
+
 @app.get("/api/import/help")
 def import_help() -> dict:
     return {

@@ -365,3 +365,21 @@ body {
 .signal-time { margin-left: auto; font-size: 11px; color: var(--muted); }
 .signal-item-headline { font-size: 13px; margin-top: 6px; }
 .signal-item-confidence { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.knowledge-list { margin-top: 14px; }
+.knowledge-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px; margin-bottom: 12px;
+}
+.knowledge-head { display: flex; align-items: center; gap: 10px; }
+.knowledge-topic { font-weight: 700; font-size: 15px; }
+.knowledge-summary { font-size: 14px; margin: 10px 0 6px; }
+.knowledge-points { margin: 0 0 10px; padding-left: 18px; font-size: 13px; }
+.knowledge-points li { margin-bottom: 4px; }
+.knowledge-sources { font-size: 12px; }
+.knowledge-sources .label { color: var(--muted); }
+.knowledge-sources ul { margin: 4px 0 0; padding-left: 16px; }
+.knowledge-sources li { margin-bottom: 3px; overflow-wrap: anywhere; }
+.knowledge-sources a { color: var(--accent); text-decoration: none; }
+.knowledge-date { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.research-composer { margin-bottom: 6px; }

@@ -11,6 +11,13 @@ from app.signals import (
     SignalCollector,
     signal_tool_schema,
 )
+from app.knowledge import (
+    KNOWLEDGE_TOOL_NAME,
+    RESEARCH_SYSTEM_PROMPT,
+    KnowledgeCollector,
+    knowledge_tool_schema,
+)
+from app.agent import AgentLoopError
 from app.mcp_manager import MCPManager
 
 DEMO_PROMPT_ADDON = """The user is currently on a SIMULATED DEMO account (not a real exchange):
@@ -51,6 +58,7 @@ class CoachAgent:
         self._client = chat_client
         self._store = store
         self.collector = SignalCollector()
+        self.knowledge_collector = KnowledgeCollector()
 
     async def build(
         self, manager: MCPManager, beginner_mode: bool = True, account_mode: str = "demo"
@@ -77,6 +85,46 @@ class CoachAgent:
             tool_specs,
             system_prompt=system_prompt,
         )
+
+    async def build_research_agent(self, manager: MCPManager, topic: str) -> Agent:
+        tool_specs = list(await manager.list_tool_specs())
+        tool_specs.append(
+            ToolSpec(
+                name=KNOWLEDGE_TOOL_NAME,
+                description=(
+                    "Deliver the finished research as a structured knowledge entry with "
+                    "summary, key points, sources and confidence. Call this exactly once."
+                ),
+                parameters=knowledge_tool_schema(),
+                handler=self._handle_knowledge,
+            )
+        )
+        return Agent(
+            self._client,
+            tool_specs,
+            system_prompt=RESEARCH_SYSTEM_PROMPT.format(topic=topic),
+            max_tool_rounds=20,
+        )
+
+    async def run_research(self, agent: Agent, topic: str) -> dict[str, Any]:
+        try:
+            await agent.run([{"role": "user", "content": f"Research: {topic}"}])
+        except AgentLoopError:
+            pass
+        item = self.knowledge_collector.last
+        if item is None:
+            return {"saved": False, "content": "The agent did not deliver a knowledge entry."}
+        knowledge_id = self._store.save_knowledge(
+            topic=item.topic,
+            summary=item.summary,
+            key_points=item.key_points,
+            sources=item.sources,
+            confidence=item.confidence,
+        )
+        return {"saved": True, "id": knowledge_id, "knowledge": item.model_dump()}
+
+    async def _handle_knowledge(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self.knowledge_collector.handler(arguments)
 
     async def run(self, agent: Agent, history: list[dict[str, Any]]) -> dict[str, Any]:
         result = await agent.run(history)

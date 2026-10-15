@@ -37,5 +37,28 @@ def get_demo_portfolio() -> dict:
     }
 
 
+DEMO_STOCKS = [
+    {"ticker": "AAPL", "qty": 12, "avg_cost_usd": 148.0},
+    {"ticker": "MSFT", "qty": 8, "avg_cost_usd": 310.0},
+    {"ticker": "NVDA", "qty": 15, "avg_cost_usd": 78.0},
+    {"ticker": "KO", "qty": 30, "avg_cost_usd": 55.0},
+    {"ticker": "SAP.DE", "qty": 20, "avg_cost_usd": 92.0},
+]
+
+
+@mcp.tool()
+def get_demo_broker_portfolio() -> dict:
+    """Simulated demo stock brokerage: holdings with average cost basis.
+    Prices come from the stocks (Yahoo Finance) tools, so values are realistic."""
+    return {
+        "account_type": "DEMO",
+        "note": "Simulated demo brokerage for trying the app without a real broker.",
+        "balances": [
+            {"asset": s["ticker"], "free": s["qty"], "locked": 0.0, "avg_cost_usd": s["avg_cost_usd"]}
+            for s in _load_overrides().get("stocks", DEMO_STOCKS)
+        ],
+    }
+
+
 if __name__ == "__main__":
     mcp.run()
