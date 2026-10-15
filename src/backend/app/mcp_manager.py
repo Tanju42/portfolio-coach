@@ -75,7 +75,13 @@ class MCPManager:
         return handler
 
     async def _open_session(self, config: ServerConfig) -> None:
-        params = StdioServerParameters(command=config.command, args=config.args)
+        import os
+
+        params = StdioServerParameters(
+            command=config.command,
+            args=config.args,
+            env={**os.environ},
+        )
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
