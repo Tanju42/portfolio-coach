@@ -92,6 +92,7 @@ export default function PortfolioPanel({ portfolio, setPortfolio, registerRefres
 
       <div className="portfolio-columns">
         <DonutChart slices={donutSlices(rows)} centerLabel="total" centerValue={money(portfolio.total_value_usd)} />
+      <div className="table-scroll">
         <table className="portfolio-table">
           <thead>
             <tr>
@@ -129,6 +130,7 @@ export default function PortfolioPanel({ portfolio, setPortfolio, registerRefres
             })}
           </tbody>
         </table>
+      </div>
       </div>
       <p className="note">{portfolio.note}</p>
     </section>

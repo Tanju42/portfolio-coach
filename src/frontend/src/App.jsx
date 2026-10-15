@@ -12,7 +12,7 @@ const NAV = [
 
 function Icon({ path }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
       <path d={path} />
     </svg>
   )
@@ -35,45 +35,39 @@ export default function App() {
     fetchPortfolio().then(setPortfolio).catch(() => {})
   }, [])
 
-  const pnlClass = portfolio?.total_pnl_usd >= 0 ? 'pos' : 'neg'
+  const pnl = portfolio?.total_pnl_usd
+  const pnlClass = pnl >= 0 ? 'pos' : 'neg'
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">PC</span>
-          <div>
-            <div className="brand-name">Portfolio Coach</div>
-            <div className="brand-sub">you decide, we explain</div>
+    <div className="viewport">
+      <div className="phone">
+        {!apiOk && <div className="banner">Backend not reachable — is the server running?</div>}
+        <header className="app-header">
+          <div className="brand">
+            <span className="brand-mark">PC</span>
+            <div>
+              <div className="brand-name">Portfolio Coach</div>
+              <div className="brand-sub">you decide, we explain</div>
+            </div>
           </div>
-        </div>
-        <nav className="nav">
-          {NAV.map((item) => (
-            <button key={item.id} className={tab === item.id ? 'nav-item active' : 'nav-item'} onClick={() => setTab(item.id)}>
-              <Icon path={item.icon} />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-summary">
+          <label className="mode-toggle" aria-label="Toggle beginner mode">
+            <span className={`switch ${beginnerMode ? 'on' : ''}`} onClick={() => setBeginnerMode(!beginnerMode)}>
+              <span className="knob" />
+            </span>
+          </label>
+        </header>
+
+        <div className="value-hero">
           <div className="label">Total value</div>
-          <div className="value">{portfolio ? money(portfolio.total_value_usd) : '—'}</div>
-          <div className={`pnl ${pnlClass}`}>
-            {portfolio && portfolio.total_pnl_usd !== undefined
-              ? `${portfolio.total_pnl_usd >= 0 ? '+' : ''}${money(portfolio.total_pnl_usd)} unrealized`
-              : ''}
-          </div>
+          <div className="hero-value">{portfolio ? money(portfolio.total_value_usd) : '—'}</div>
+          {pnl !== undefined && (
+            <div className={`hero-pnl ${pnlClass}`}>
+              {pnl >= 0 ? '▲ +' : '▼ '}{money(pnl)} unrealized
+            </div>
+          )}
         </div>
-        <label className="mode-toggle">
-          <span>Beginner mode</span>
-          <span className={`switch ${beginnerMode ? 'on' : ''}`} onClick={() => setBeginnerMode(!beginnerMode)}>
-            <span className="knob" />
-          </span>
-        </label>
-      </aside>
-      <div className="main">
-        {!apiOk && <div className="banner">Backend not reachable — is uvicorn running on port 8000?</div>}
-        <main className="content">
+
+        <main className={tab === 'chat' ? 'content chat-view' : 'content'}>
           {tab === 'chat' && (
             <ChatPanel
               sessionId={sessionId}
@@ -86,9 +80,20 @@ export default function App() {
           )}
           {tab === 'import' && <ImportPanel onImported={() => refreshPortfolio.current?.()} />}
         </main>
-        <footer className="footnote">
-          Not financial advice. Trading decisions remain yours. Powered by Nebius Token Factory &amp; NVIDIA open source models.
-        </footer>
+
+        <nav className="bottom-nav">
+          {NAV.map((item) => (
+            <button
+              key={item.id}
+              className={tab === item.id ? 'nav-item active' : 'nav-item'}
+              onClick={() => setTab(item.id)}
+              aria-label={item.label}
+            >
+              <Icon path={item.icon} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   )

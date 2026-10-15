@@ -20,7 +20,10 @@ SAMPLE_CSV = """User ID,Time,Account,Operation,Coin,Change,Remark
 
 
 @pytest.fixture()
-def client():
+def client(tmp_path, monkeypatch):
+    import app.main as main_mod
+
+    main_mod.DB_PATH = tmp_path / "test-portfolio.db"
     from app.main import app
 
     with TestClient(app) as test_client:
