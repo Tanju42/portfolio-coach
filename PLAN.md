@@ -81,6 +81,8 @@ Fertig wenn: Dashboard lädt, Chat funktioniert, Portfolio sichtbar, Ampel rende
 
 > ✅ S7-Fortschritt 2026-10-15: UX-Overhaul nach Recherche (Delta/Kubera/Linear-Vorbilder): Sidebar-Layout mit SVG-Icons, 4 Stat-Cards (Total/Basis/P&L+%/Konzentration), SVG-Allocations-Donut mit Legende, sortierbare Tabelle mit Share-Bars und 2×-Leverage-Badges, Markdown-Rendering im Chat, Suggestion-Chips (klickbar, fix: EmptyChat-Chips waren vorher tot), Signal-Card mit Confidence-Bar + Risk-Chip, Skeleton-Loading, Beginner-Mode jetzt backend-wirksam (2 Agenten-Instanzen, Prompt pro Mode). Browser-E2E: Chip-Flow → Markdown-Antwort mit Per-Coin-Tabelle → 9 Tool-Calls. 15/15 Tests grün, Build grün. commit f729a30. S7-Rest: Demo-Flow 3× Rehearsal, Fehlerfall-Politur.
 
+> ✅ Mobile-First 2026-10-15 (User-Entscheidung: App-Schlussziel Handy, Desktop zeigt immer Handy-Formfaktor): Phone-Frame auf Desktop (414px, zentriert, gerundet+Shadow), Mobile = Fullscreen 100dvh, Bottom-Tab-Bar (Coach/Portfolio/Import) statt Sidebar, Value-Hero-Card oben mit P&L-Pfeil, safe-area-insets, PWA-Metas + Manifest + Icon (installierbar, standalone). Portfolio-Tabelle horizontal scrollbar, Donut kompakt zentriert. Mobile-Viewport via CDP-Emulation verifiziert (390px). Zusätzlich gefixt: API-Tests schrieben Test-Fixture in die echte DB (SOL-Position verfälscht) → Tests auf Temp-DB umgestellt, echte CSV re-importiert ($2.441,88 | +$729,20). commit 1ba2f9c.
+
 ### S7 — E2E-Härtung
 Mensch: Ein sauberer Demo-Flow, der im Video gezeigt wird: Onboarding → Portfolio verbinden → Frage → Signal → Begründung.
 Ausführung: Smoke-Tests, Fehlerfälle (API-Fail → graceful), Logging.

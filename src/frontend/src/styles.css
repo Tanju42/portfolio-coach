@@ -40,8 +40,9 @@ body {
 .phone {
   display: flex; flex-direction: column;
   background: var(--bg);
-  min-height: 100dvh;
+  height: 100dvh;
   position: relative;
+  overflow: hidden;
 }
 
 @media (min-width: 760px) and (min-height: 640px) {
@@ -50,12 +51,17 @@ body {
     padding: 28px 16px;
   }
   .phone {
-    width: 414px; height: min(92dvh, 880px); min-height: 0;
+    width: 414px; height: min(92dvh, 880px);
+    flex-shrink: 0;
     border-radius: 34px; border: 1px solid var(--border-strong);
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 8px #05070b, 0 0 0 9px var(--border);
     overflow: hidden;
   }
 }
+
+.app-header { flex-shrink: 0; }
+.value-hero { flex-shrink: 0; }
+.bottom-nav { flex-shrink: 0; z-index: 20; }
 
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -116,12 +122,13 @@ body {
 }
 .empty-chat h2 { margin: 0 0 6px; font-size: 19px; }
 .empty-chat p { color: var(--muted); font-size: 14px; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
-.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; justify-items: stretch; margin-top: 16px; max-width: 340px; margin-left: auto; margin-right: auto; }
 .chip {
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
-  border-radius: 999px; padding: 9px 14px; font-size: 13px; cursor: pointer;
+  border-radius: 18px; padding: 10px 12px; font-size: 13px; cursor: pointer;
   transition: border-color 150ms ease, background 150ms ease;
+  text-align: center; line-height: 1.3; min-height: 40px;
+  display: flex; align-items: center; justify-content: center;
 }
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); }
 

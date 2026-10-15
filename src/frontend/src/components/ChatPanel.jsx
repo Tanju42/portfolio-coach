@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { sendChat } from '../api.js'
 import Markdown from './Markdown.jsx'
-import { SignalCard, EmptyChat, ThinkingDots, SUGGESTIONS } from './ChatParts.jsx'
+import { SignalCard, EmptyChat, ThinkingDots } from './ChatParts.jsx'
 
 export default function ChatPanel({ sessionId, beginnerMode, onSignal }) {
   const [messages, setMessages] = useState([])
@@ -63,15 +63,6 @@ export default function ChatPanel({ sessionId, beginnerMode, onSignal }) {
         <div ref={listEnd} />
       </div>
       <form className="composer" onSubmit={(event) => { event.preventDefault(); submit() }}>
-        {messages.length === 0 && (
-          <div className="chip-row">
-            {SUGGESTIONS.map((suggestion) => (
-              <button key={suggestion} type="button" className="chip" onClick={() => submit(suggestion)}>
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="composer-row">
           <input
             ref={inputRef}

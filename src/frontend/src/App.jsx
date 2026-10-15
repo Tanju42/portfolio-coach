@@ -57,15 +57,17 @@ export default function App() {
           </label>
         </header>
 
-        <div className="value-hero">
-          <div className="label">Total value</div>
-          <div className="hero-value">{portfolio ? money(portfolio.total_value_usd) : '—'}</div>
-          {pnl !== undefined && (
-            <div className={`hero-pnl ${pnlClass}`}>
-              {pnl >= 0 ? '▲ +' : '▼ '}{money(pnl)} unrealized
-            </div>
-          )}
-        </div>
+        {(tab !== 'import') && (
+          <div className="value-hero">
+            <div className="label">Total value</div>
+            <div className="hero-value">{portfolio ? money(portfolio.total_value_usd) : '—'}</div>
+            {pnl !== undefined && (
+              <div className={`hero-pnl ${pnlClass}`}>
+                {pnl >= 0 ? '▲ +' : '▼ '}{money(pnl)} unrealized
+              </div>
+            )}
+          </div>
+        )}
 
         <main className={tab === 'chat' ? 'content chat-view' : 'content'}>
           {tab === 'chat' && (
