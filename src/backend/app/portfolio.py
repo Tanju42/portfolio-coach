@@ -37,11 +37,9 @@ async def build_portfolio(
         return {"error": account_data["error"]}
 
     holdings = {
-        asset: free + locked
-        for asset, free, locked in (
-            (b["asset"], b["free"], b["locked"]) for b in account_data["balances"]
-        )
-        if free + locked > 1e-9
+        b["asset"]: (b["free"] + b["locked"], b.get("avg_cost_usd"))
+        for b in account_data["balances"]
+        if b["free"] + b["locked"] > 1e-9
     }
 
     sem = asyncio.Semaphore(MAX_PRICE_CONCURRENCY)
@@ -64,11 +62,15 @@ async def build_portfolio(
 
     price_values = await asyncio.gather(*(price_of(a) for a in holdings))
     rows: list[PortfolioRow] = []
-    for (asset, qty), price in zip(holdings.items(), price_values):
-        position = positions.get(asset) or positions.get(asset[2:] if asset.startswith("LD") else asset)
+    for (asset, (qty, provider_cost)), price in zip(holdings.items(), price_values):
+        base = asset[2:] if asset.startswith("LD") else asset
+        position = positions.get(asset) or positions.get(base)
         if position is not None and position.qty > 0:
             avg_cost = position.avg_cost_usd
             reliable_share = 1 - (position.basis_unknown_qty / position.qty)
+        elif provider_cost is not None:
+            avg_cost = float(provider_cost)
+            reliable_share = 1.0
         else:
             avg_cost, reliable_share = None, 0.0
         cost = avg_cost * qty if avg_cost is not None else 0.0

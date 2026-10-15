@@ -24,6 +24,22 @@ export function fetchImportHelp() {
   return fetch(`${API}/import/help`).then(jsonOrThrow)
 }
 
+export function fetchMarket() {
+  return fetch(`${API}/market`).then(jsonOrThrow)
+}
+
+export function fetchSettings() {
+  return fetch(`${API}/settings`).then(jsonOrThrow)
+}
+
+export function setAccountMode(mode) {
+  return fetch(`${API}/settings/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode }),
+  }).then(jsonOrThrow)
+}
+
 export function sendChat(message, sessionId, beginnerMode) {
   return fetch(`${API}/chat`, {
     method: 'POST',

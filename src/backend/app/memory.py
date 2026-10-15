@@ -123,6 +123,10 @@ class MemoryStore:
                 beginner_explanation TEXT NOT NULL,
                 disclaimer TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS risk_profile (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
@@ -225,6 +229,18 @@ class MemoryStore:
     def get_risk_profile(self) -> dict[str, str]:
         rows = self._conn.execute("SELECT key, value FROM risk_profile").fetchall()
         return {row["key"]: row["value"] for row in rows}
+
+    def get_setting(self, key: str, default: str | None = None) -> str | None:
+        row = self._conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        self._conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        self.commit()
 
     def set_risk_profile(self, key: str, value: str) -> None:
         self._conn.execute(

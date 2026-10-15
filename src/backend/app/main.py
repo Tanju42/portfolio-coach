@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import tempfile
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+import os
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,22 +22,44 @@ from app.mcp_manager import MCPManager, load_server_configs
 from app.memory import MemoryStore
 
 DB_PATH = Path(__file__).resolve().parent.parent / "portfolio.db"
+SERVERS_PATH = Path(__file__).resolve().parent.parent / "servers" / "mcp_servers.json"
+
+LIVE_ACCOUNT_TOOL = "binance_get_account_assets"
+DEMO_ACCOUNT_TOOL = "demo-exchange_get_demo_portfolio"
+MARKET_TOOLS = [
+    "coingecko_get_fear_greed",
+    "coingecko_get_global_market",
+    "coingecko_get_top_movers",
+    "coingecko_get_news",
+]
 
 state: dict = {}
+_market_cache: dict = {"ts": 0.0, "data": None}
+
+
+async def _rebuild_agents(account_mode: str) -> dict:
+    coach: CoachAgent = state["coach"]
+    agents = {}
+    for beginner_mode in (True, False):
+        agents[beginner_mode] = await coach.build(
+            state["manager"], beginner_mode=beginner_mode, account_mode=account_mode
+        )
+    return agents
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = load_settings()
     store = MemoryStore(DB_PATH)
-    manager = MCPManager(load_server_configs(Path(__file__).resolve().parent.parent / "servers" / "mcp_servers.json"))
+    manager = MCPManager(load_server_configs(SERVERS_PATH))
     await manager.start()
     coach = CoachAgent(OpenAICompatClient(settings), store)
-    agents = {mode: await coach.build(manager, beginner_mode=mode) for mode in (True, False)}
     state["store"] = store
     state["coach"] = coach
-    state["agents"] = agents
     state["manager"] = manager
+    account_mode = store.get_setting("account_mode", "demo")
+    state["account_mode"] = account_mode
+    state["agents"] = await _rebuild_agents(account_mode)
     try:
         yield
     finally:
@@ -53,6 +79,10 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
     beginner_mode: bool = True
+
+
+class ModeRequest(BaseModel):
+    mode: str
 
 
 @app.get("/api/health")
@@ -80,13 +110,69 @@ def signals() -> dict:
     return {"signals": state["store"].get_signals()}
 
 
+@app.get("/api/settings")
+def get_settings_view() -> dict:
+    return {
+        "account_mode": state["account_mode"],
+        "has_live_keys": bool(os.environ.get("BINANCE_API_KEY")),
+    }
+
+
+@app.post("/api/settings/mode")
+async def set_account_mode(request: ModeRequest) -> dict:
+    if request.mode not in ("demo", "live"):
+        raise HTTPException(status_code=400, detail="mode must be 'demo' or 'live'")
+    if request.mode == "live" and not os.environ.get("BINANCE_API_KEY"):
+        raise HTTPException(status_code=400, detail="Binance API keys not configured in backend .env")
+    state["account_mode"] = request.mode
+    state["store"].set_setting("account_mode", request.mode)
+    state["agents"] = await _rebuild_agents(request.mode)
+    return {"account_mode": request.mode, "has_live_keys": bool(os.environ.get("BINANCE_API_KEY"))}
+
+
+@app.get("/api/market")
+async def market() -> dict:
+    now = time.time()
+    if _market_cache["data"] is not None and now - _market_cache["ts"] < 60:
+        return _market_cache["data"]
+    specs = {spec.name: spec for spec in await state["manager"].list_tool_specs()}
+    missing = [name for name in MARKET_TOOLS if name not in specs]
+    if missing:
+        return {"error": f"market tools unavailable: {missing}"}
+
+    async def call(name: str):
+        result = await specs[name].handler({})
+        try:
+            return json.loads(result["content"][0]["text"])
+        except (KeyError, IndexError, json.JSONDecodeError):
+            return {"error": f"{name} returned unparseable content"}
+
+    fear_greed, global_market, movers, news = await asyncio.gather(
+        *(call(name) for name in MARKET_TOOLS)
+    )
+    data = {
+        "fear_greed": fear_greed,
+        "global": global_market,
+        "movers": movers,
+        "news": news,
+        "fetched_at": int(now),
+    }
+    _market_cache["ts"] = now
+    _market_cache["data"] = data
+    return data
+
+
 @app.get("/api/portfolio")
 async def portfolio() -> dict:
     store: MemoryStore = state["store"]
     positions = {p.coin: p for p in store.get_positions()}
     from app.portfolio import build_portfolio
 
-    return await build_portfolio(state["manager"], positions, "binance_get_account_assets", "binance_get_ticker")
+    if state["account_mode"] == "live":
+        result = await build_portfolio(state["manager"], positions, LIVE_ACCOUNT_TOOL, "binance_get_ticker")
+        if "error" not in result:
+            return result
+    return await build_portfolio(state["manager"], positions, DEMO_ACCOUNT_TOOL, "binance_get_ticker")
 
 
 @app.get("/api/import/help")

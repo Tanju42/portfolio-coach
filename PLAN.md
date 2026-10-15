@@ -83,6 +83,18 @@ Fertig wenn: Dashboard lädt, Chat funktioniert, Portfolio sichtbar, Ampel rende
 
 > ✅ Mobile-First 2026-10-15 (User-Entscheidung: App-Schlussziel Handy, Desktop zeigt immer Handy-Formfaktor): Phone-Frame auf Desktop (414px, zentriert, gerundet+Shadow), Mobile = Fullscreen 100dvh, Bottom-Tab-Bar (Coach/Portfolio/Import) statt Sidebar, Value-Hero-Card oben mit P&L-Pfeil, safe-area-insets, PWA-Metas + Manifest + Icon (installierbar, standalone). Portfolio-Tabelle horizontal scrollbar, Donut kompakt zentriert. Mobile-Viewport via CDP-Emulation verifiziert (390px). Zusätzlich gefixt: API-Tests schrieben Test-Fixture in die echte DB (SOL-Position verfälscht) → Tests auf Temp-DB umgestellt, echte CSV re-importiert ($2.441,88 | +$729,20). commit 1ba2f9c.
 
+### S6b — Demo-Mode + Multi-Provider-Routing
+Mensch: Die App soll als Demo ohne echtes Konto funktionieren (Jury kann sie sofort nutzen) und mehrere Anbieter per MCP ansteuern. Demo = simuliertes Portfolio (5 Assets, seeded), Preise kommen LIVE von Binance-Tickern. Umschaltbar Demo/Live im UI; Live braucht read-only Binance-Keys.
+Ausführung: Neuer MCP-Server `servers/demo_exchange_mcp_server.py` (get_demo_portfolio mit simulierte Positions + Cost-Basis); Memory `settings`-Tabelle (account_mode demo|live); /api/portfolio: Live-Account-Call schlägt fehl (keine Keys) → Fallback auf Demo-Account; /api/settings/mode zum Umschalten; Agent-Systemprompt kennt den Mode.
+Klasse: K1
+Fertig wenn: Ohne Keys liefert /api/portfolio ein komplettes Demo-Portfolio mit Live-Preisen; Umschaltung per API ändert die Quelle; Agent antwortet korrekt im Demo-Mode.
+
+### S6c — Market-Info (Fear&Greed, Mover, News, Signals-History)
+Mensch: "Alle wichtigen Infos" wie bei CoinMarketCap/Delta: Fear&Greed-Index (alternative.me, keyless), Top-Mover (CoinGecko markets endpoint), Crypto-News (RSS CoinDesk/Cointelegraph/Decrypt, keyless), Signal-Historie (aus SQLite).
+Ausführung: coingecko-Server erweitert: get_global_market, get_fear_greed, get_top_movers, get_news (RSS-Parse). Neuer /api/market-Endpoint (cached 60s). Frontend: 4. Nav-Tab "Market" (F&G-Gauge, Mover-Liste, News-Feed) + 5. Tab "Signals" (Historie mit Ampel).
+Klasse: K1
+Fertig wenn: /api/market liefert F&G + Mover + News live; Market-Tab rendert alles im Mobile-Layout; Signals-Tab zeigt Historie.
+
 ### S7 — E2E-Härtung
 Mensch: Ein sauberer Demo-Flow, der im Video gezeigt wird: Onboarding → Portfolio verbinden → Frage → Signal → Begründung.
 Ausführung: Smoke-Tests, Fehlerfälle (API-Fail → graceful), Logging.

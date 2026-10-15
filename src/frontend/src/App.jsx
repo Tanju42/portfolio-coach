@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
 import ChatPanel from './components/ChatPanel.jsx'
 import PortfolioPanel from './components/PortfolioPanel.jsx'
+import MarketPanel from './components/MarketPanel.jsx'
+import SignalsPanel from './components/SignalsPanel.jsx'
 import ImportPanel from './components/ImportPanel.jsx'
 import { fetchHealth, fetchPortfolio } from './api.js'
 
 const NAV = [
   { id: 'chat', label: 'Coach', icon: 'M4 5h16v11H7l-3 3V5z' },
   { id: 'portfolio', label: 'Portfolio', icon: 'M12 3a9 9 0 1 0 9 9h-9V3z M14 3a7 7 0 0 1 7 7h-7V3z' },
+  { id: 'market', label: 'Market', icon: 'M3 17l6-6 4 4 8-8M16 7h5v5' },
+  { id: 'signals', label: 'Signals', icon: 'M12 3l10 18H2L12 3z M12 10v5m0 3h.01' },
   { id: 'import', label: 'Import', icon: 'M12 3v10m0 0l-4-4m4 4l4-4M4 17v4h16v-4' },
 ]
 
@@ -80,6 +84,8 @@ export default function App() {
           {tab === 'portfolio' && (
             <PortfolioPanel portfolio={portfolio} setPortfolio={setPortfolio} registerRefresh={refreshPortfolio} />
           )}
+          {tab === 'market' && <MarketPanel registerRefresh={refreshPortfolio} />}
+          {tab === 'signals' && <SignalsPanel />}
           {tab === 'import' && <ImportPanel onImported={() => refreshPortfolio.current?.()} />}
         </main>
 

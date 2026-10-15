@@ -13,6 +13,13 @@ from app.signals import (
 )
 from app.mcp_manager import MCPManager
 
+DEMO_PROMPT_ADDON = """The user is currently on a SIMULATED DEMO account (not a real exchange):
+- Get their holdings from the demo-exchange_get_demo_portfolio tool, NOT from
+  binance account tools (their real balances are not connected).
+- Treat the demo holdings as their portfolio for every analysis and signal.
+- Mention once per conversation that this is a simulated demo portfolio.
+- Market data (prices, charts, news) is still real market data."""
+
 BEGINNER_SYSTEM_PROMPT = """You are the user's personal Portfolio Coach. You are an educational
 decision-support assistant, NOT a financial advisor. Every user decision remains the
 user's own responsibility; say so whenever you give a signal or recommendation.
@@ -46,7 +53,7 @@ class CoachAgent:
         self.collector = SignalCollector()
 
     async def build(
-        self, manager: MCPManager, beginner_mode: bool = True
+        self, manager: MCPManager, beginner_mode: bool = True, account_mode: str = "demo"
     ) -> Agent:
         tool_specs = list(await manager.list_tool_specs())
         tool_specs.extend(self._memory_tools())
@@ -63,6 +70,8 @@ class CoachAgent:
         )
         system_prompt = BEGINNER_SYSTEM_PROMPT if beginner_mode else EXPERT_SYSTEM_PROMPT
         system_prompt = system_prompt + "\n\n" + SIGNAL_PROMPT_ADDON
+        if account_mode == "demo":
+            system_prompt = system_prompt + "\n\n" + DEMO_PROMPT_ADDON
         return Agent(
             self._client,
             tool_specs,
