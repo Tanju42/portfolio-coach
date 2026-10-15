@@ -77,6 +77,8 @@ Ausführung: Vite+React+Tailwind (oder Streamlit-Fallback, wenn Zeit knapp — D
 Klasse: K1
 Fertig wenn: Dashboard lädt, Chat funktioniert, Portfolio sichtbar, Ampel rendert — im Browser geprüft.
 
+> ✅ S6 (Kern) erledigt 2026-10-15 — im Browser verifiziert (E2E): React+Vite+CSS-Frontend (Chat/Portfolio/Import-Tabs, dunkles Design, Ampel-Card mit Traffic-Light + Confidence + Rationale + Beginner-Erklärung + Disclaimer), API-Schicht (`app/main.py`: /api/health, /api/chat mit Session-Historie in SQLite, /api/portfolio mit Concurrency-Limiter + LD-Token-Preis-Mapping, /api/import/help, /api/import/csv Upload), Portfolio-Ansicht zeigt Live-Daten ($2.393,65 Wert / $1.712,68 Basis / +$680,97 P&L) mit Zuverlässigkeits-Badges, Import-Page zeigt die Plug-and-Play-Anleitung (Binance → Transaction History → All time → CSV). 15/15 Backend-Tests grün, Vite-Build grün. Gefixte Frontend-Bugs: fehlende useRef/useState-Imports (stiller Render-Null — Debugging via CDP Page.addScriptToEvaluateOnNewDocument + Error-Details). Offen für S7: Fehlerfälle-Politur, Beginner-Mode-Toggle-Wirkung im Backend, Rehearsal.
+
 ### S7 — E2E-Härtung
 Mensch: Ein sauberer Demo-Flow, der im Video gezeigt wird: Onboarding → Portfolio verbinden → Frage → Signal → Begründung.
 Ausführung: Smoke-Tests, Fehlerfälle (API-Fail → graceful), Logging.
